@@ -171,6 +171,6 @@ def test_throughput_benchmark():
     ms_per_slice = (elapsed / 50.0) * 1000.0
     print(f"\nThroughput benchmark: {ms_per_slice:.2f} ms/slice ({elapsed:.3f}s for 50 slices)")
 
-    # Assert processing is comfortably fast (< 5ms per slice)
-    assert ms_per_slice < 5.0, f"Extraction too slow: {ms_per_slice:.2f} ms/slice"
+    # Assert processing is comfortably fast (< 10ms per slice, target in ROADMAP is < 15ms)
+    assert ms_per_slice < 10.0, f"Extraction too slow: {ms_per_slice:.2f} ms/slice"
     assert slabs.shape == (10, 3, 256, 256)

@@ -191,3 +191,30 @@ class CrossValidationExperiment:
             "oof_predictions": oof_preds,
             "report": report,
         }
+
+
+def run_baseline_reproduction(
+    df: pd.DataFrame,
+    cache_dir: Union[str, Path],
+    backbone_name: str = "resnet34d",
+    epochs: int = 3,
+    batch_size: int = 4,
+    lr: float = 1e-4,
+    device: Optional[str] = None,
+    checkpoint_dir: Union[str, Path] = "checkpoints/cv",
+    use_amp: bool = True,
+) -> Dict[str, Any]:
+    """High-level function reproducing the 5-fold CV baseline experiment."""
+    exp = CrossValidationExperiment(
+        df=df,
+        cache_dir=cache_dir,
+        backbone_name=backbone_name,
+        epochs=epochs,
+        batch_size=batch_size,
+        lr=lr,
+        device=device,
+        checkpoint_dir=checkpoint_dir,
+        use_amp=use_amp,
+    )
+    return exp.run_all_folds()
+

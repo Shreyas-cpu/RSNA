@@ -142,8 +142,8 @@ Plans:
 
 Plans:
 
-- [ ] 06-01: Build multi-plane sequence fusion module concatenating Sagittal, Coronal, and Axial representations.
-- [ ] 06-02: Execute joint training with silver label curriculum and validate CV improvements.
+- [x] 06-01: Build multi-plane sequence fusion module concatenating Sagittal, Coronal, and Axial representations.
+- [x] 06-02: Execute joint training with silver label curriculum and validate CV improvements.
 
 ---
 

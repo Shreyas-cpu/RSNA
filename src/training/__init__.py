@@ -1,10 +1,13 @@
-"""Training package for RSNA Knee Abnormality Detection.
+"""RSNA Knee Abnormality Detection - Model Training Package."""
 
-Provides class-balanced loss weighting, mixed-precision AMP trainer,
-and multi-fold cross-validation experiment orchestration.
-"""
-
-from src.training.cv_experiment import CrossValidationExperiment
+from src.training.cv_experiment import (
+    CrossValidationExperiment,
+    run_baseline_reproduction,
+)
+from src.training.joint_trainer import (
+    JointTrainer,
+    SampleWeightedBCEWithLogitsLoss,
+)
 from src.training.loss import compute_pos_weights, create_loss_fn
 from src.training.trainer import Trainer
 
@@ -13,4 +16,7 @@ __all__ = [
     "create_loss_fn",
     "Trainer",
     "CrossValidationExperiment",
+    "run_baseline_reproduction",
+    "SampleWeightedBCEWithLogitsLoss",
+    "JointTrainer",
 ]

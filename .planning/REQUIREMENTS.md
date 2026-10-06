@@ -75,8 +75,8 @@
 | EVAL-03   | Phase 4 | Complete |
 | WEAK-01   | Phase 5 | Complete |
 | WEAK-02   | Phase 5 | Complete |
-| MODEL-03  | Phase 6 | Pending |
-| TRAIN-03  | Phase 6 | Pending |
+| MODEL-03  | Phase 6 | Complete |
+| TRAIN-03  | Phase 6 | Complete |
 | SUBMIT-01 | Phase 7 | Pending |
 | SUBMIT-02 | Phase 7 | Pending |
 | SUBMIT-03 | Phase 7 | Pending |
