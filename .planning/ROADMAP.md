@@ -121,8 +121,8 @@ Plans:
 
 Plans:
 
-- [ ] 05-01: Implement clinical report prompt parser and LLM extraction script.
-- [ ] 05-02: Validate extracted labels against labeled ground-truth subset and generate full `silver_train.csv`.
+- [x] 05-01: Implement clinical report prompt parser and LLM extraction script.
+- [x] 05-02: Validate extracted labels against labeled ground-truth subset and generate full `silver_train.csv`.
 
 ---
 

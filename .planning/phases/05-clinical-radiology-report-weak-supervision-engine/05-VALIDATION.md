@@ -1,9 +1,9 @@
 ---
 phase: 5
 slug: clinical-radiology-report-weak-supervision-engine
-status: draft
+status: complete
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-10-06
 ---
 
@@ -21,7 +21,7 @@ created: 2026-10-06
 | **Config file** | pyproject.toml |
 | **Quick run command** | `pytest tests/test_report_parser.py tests/test_weak_validator.py -v` |
 | **Full suite command** | `pytest tests/ -v` |
-| **Estimated runtime** | ~10 seconds |
+| **Estimated runtime** | ~16 seconds |
 
 ---
 
@@ -38,9 +38,9 @@ created: 2026-10-06
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 05-01-01 | 01 | 1 | WEAK-01 | — | Deterministic NegEx parser & entity extractor | unit | `pytest tests/test_report_parser.py` | ❌ W0 | ⬜ pending |
-| 05-01-02 | 01 | 1 | WEAK-01 | — | Structured prompt & JSON response parsing | unit | `pytest tests/test_llm_extractor.py` | ❌ W0 | ⬜ pending |
-| 05-02-01 | 02 | 2 | WEAK-02 | — | Ground-truth alignment verification & silver dataset | integration | `pytest tests/test_weak_validator.py` | ❌ W0 | ⬜ pending |
+| 05-01-01 | 01 | 1 | WEAK-01 | — | Deterministic NegEx parser & entity extractor | unit | `pytest tests/test_report_parser.py` | ✅ | ✅ green |
+| 05-01-02 | 01 | 1 | WEAK-01 | — | Structured prompt & JSON response parsing | unit | `pytest tests/test_llm_extractor.py` | ✅ | ✅ green |
+| 05-02-01 | 02 | 2 | WEAK-02 | — | Ground-truth alignment verification & silver dataset | integration | `pytest tests/test_weak_validator.py` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -48,14 +48,14 @@ created: 2026-10-06
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_report_parser.py` — unit tests for NegEx scoping, certainty levels, and 12-class extraction
-- [ ] `tests/test_llm_extractor.py` — unit tests for prompt formatting and JSON extraction parsing
-- [ ] `tests/test_weak_validator.py` — integration tests for ground-truth alignment metrics and silver dataset generation
+- [x] `tests/test_report_parser.py` — unit tests for NegEx scoping, certainty levels, and 12-class extraction
+- [x] `tests/test_llm_extractor.py` — unit tests for prompt formatting and JSON extraction parsing
+- [x] `tests/test_weak_validator.py` — integration tests for ground-truth alignment metrics and silver dataset generation
 
 ---
 
 ## Validation Signoff
 
-- [ ] All automated tests passing
-- [ ] WEAK-01 and WEAK-02 verified
-- [ ] Ready for Phase 6 multi-plane feature fusion
+- [x] All automated tests passing (62/62 green)
+- [x] WEAK-01 and WEAK-02 verified
+- [x] Ready for Phase 6 multi-plane feature fusion
