@@ -60,6 +60,7 @@ Recent decisions affecting current work:
 - [Project Init]: Adopted 2.5D Multi-Slice + MIL Attention Pooling over heavy 3D volumetric convolutions for fast iteration and efficiency prize qualification.
 - [Project Init]: Adopted Vertical MVP execution mode to deliver an end-to-end working pipeline fast, improving slice-by-slice.
 - [Project Init]: Integrated team's Version 9 baseline (0.584 Public AUC) as benchmark target.
+- [Strategic Mandate]: Primary target locked: systematically surpass the 0.584 Public AUC mark first via disciplined high-speed DICOM caching, report weak labels, and leak-free validation, then shift focus to ensemble refinement, minority-class calibration, and runtime optimization to compete for the Top 10 leaderboard.
 
 ### Pending Todos
 

@@ -33,6 +33,7 @@ Beat the 0.584 Public AUC baseline with a robust, reproducible 2.5D multi-plane 
 - **Competition**: Kaggle RSNA Knee Abnormality Detection ($77,000 prize pool).
 - **Evaluation**: Macro-averaged Area Under ROC Curve (Macro AUC ROC) across 12 targets.
 - **Current Baseline**: Team notebook `rsna-knee-submission-baseline` achieved a verified Public Score of **0.584** on Version 9.
+- **Locked Primary Target**: Beat the Version 9 baseline score (0.584 Public AUC) with a disciplined, reproducible jump. Every architectural decision—from high-throughput DICOM slab caching and weak-label extraction on unstructured reports to multi-plane 2.5D attention pooling and leak-free stratified group validation—is structured around systematically surpassing this 0.584 mark first. Once surpassed, focus shifts to aggressive ensemble refinement, minority-class calibration, and runtime optimization to compete for the Top 10 leaderboard and prize tiers.
 - **Hardware Environment**: Local development on RTX 4060 GPU with mixed precision (AMP fp16/bf16); Kaggle execution environment on NVIDIA T4/P100 (9h max limit, offline).
 - **Target Conditions (12)**: `ACL`, `MCL`, `Medial Meniscus`, `Lateral Meniscus`, `Medial OA`, `Lateral OA`, `PF OA`, `Effusion`, `Synovitis`, `Baker's`, `Contusion`, `Fracture`.
 - **Reference Guide**: Full competition and notebook lifecycle documentation documented in [about_RSNA.md](file:///home/promethious/projects/RSNA/about_RSNA.md).
