@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
-current_phase: 3
-current_phase_name: 2.5D Multi-Slice Vision Model & Attention Pooling
+current_phase: 4
+current_phase_name: Class-Balanced Training & Baseline V9 Reproduction
 status: completed
-stopped_at: Completed Phase 3 (Plans 03-01 and 03-02 verified). Ready to plan Phase 4.
-last_updated: "2026-10-06T18:31:00.000Z"
+stopped_at: Completed Phase 4 (Plans 04-01 and 04-02 verified, 44/44 tests green). Ready to plan Phase 5.
+last_updated: "2026-10-06T20:23:00.000Z"
 last_activity: 2026-10-06
-last_activity_desc: Completed Phase 3 with 38 unit/integration tests passing, SliceBackbone, GatedAttentionPool, and RSNAKneeModel
-state_head: aa72429
+last_activity_desc: Completed Phase 4 with 44 unit/integration tests passing, Trainer, loss pos_weight, and CrossValidationExperiment
+state_head: HEAD
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 5
-  percent: 38
+  completed_plans: 7
+  percent: 54
 ---
 
 # Project State
@@ -23,24 +23,24 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-10-06)
 
 **Core value:** Beat the 0.584 Public AUC baseline with a robust, reproducible 2.5D multi-plane attention architecture and generate submission-ready Kaggle kernels under strict runtime limits.  
-**Current focus:** Phase 3 complete; Ready for Phase 4: Class-Balanced Training & Baseline V9 Reproduction  
+**Current focus:** Phase 4 complete; Ready for Phase 5: Clinical Radiology Report Weak Supervision Engine  
 
 ## Current Position
 
-Phase: 3 (2.5D Multi-Slice Vision Model & Attention Pooling) — COMPLETED
-Plan: 2 of 2 in Phase 3 complete  
-Status: Phase 3 Completed & Verified (38/38 tests green)
-Last activity: 2026-10-06 — Completed Phase 3 with SliceBackbone, GatedAttentionPool, and RSNAKneeModel supporting AMP and predicting continuous 12-class probabilities  
+Phase: 4 (Class-Balanced Training & Baseline V9 Reproduction) — COMPLETED
+Plan: 2 of 2 in Phase 4 complete  
+Status: Phase 4 Completed & Verified (44/44 tests green)
+Last activity: 2026-10-06 — Completed Phase 4 with class-balanced BCE loss, AMP trainer with gradient accumulation, and 5-fold CV experiment engine  
 
-Progress: [████░░░░░░] 38%
+Progress: [█████░░░░░] 54%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 7
 - Average duration: ~15 min
-- Total execution time: 1.25 hours
+- Total execution time: 1.75 hours
 
 **By Phase:**
 
@@ -49,7 +49,7 @@ Progress: [████░░░░░░] 38%
 | 1. Fast DICOM Ingestion & Slab Caching Engine | 2/2 | 100% | ~15m |
 | 2. Leakage-Free Stratified Group Validation Harness | 1/1 | 100% | ~15m |
 | 3. 2.5D Multi-Slice Vision Model & Attention Pooling | 2/2 | 100% | ~15m |
-| 4. Class-Balanced Training & Baseline V9 Reproduction | 0/2 | - | - |
+| 4. Class-Balanced Training & Baseline V9 Reproduction | 2/2 | 100% | ~15m |
 | 5. Clinical Radiology Report Weak Supervision Engine | 0/2 | - | - |
 | 6. Multi-Plane Feature Fusion & Joint Training | 0/2 | - | - |
 | 7. Offline Kaggle Kernel Exporter & Efficiency Packaging | 0/2 | - | - |

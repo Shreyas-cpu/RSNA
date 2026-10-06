@@ -100,8 +100,8 @@ Plans:
 
 Plans:
 
-- [ ] 04-01: Implement training loop with AMP, positive-weighted loss, optimizer, and checkpoint manager.
-- [ ] 04-02: Run 5-fold training experiment, compute OOF validation Macro AUC, and verify baseline reproduction.
+- [x] 04-01: Implement training loop with AMP, positive-weighted loss, optimizer, and checkpoint manager.
+- [x] 04-02: Run 5-fold training experiment, compute OOF validation Macro AUC, and verify baseline reproduction.
 
 ---
 

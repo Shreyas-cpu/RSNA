@@ -70,9 +70,9 @@
 | MODEL-01  | Phase 3 | Complete |
 | MODEL-02  | Phase 3 | Complete |
 | MODEL-04  | Phase 3 | Complete |
-| TRAIN-01  | Phase 4 | Pending |
-| TRAIN-02  | Phase 4 | Pending |
-| EVAL-03   | Phase 4 | Pending |
+| TRAIN-01  | Phase 4 | Complete |
+| TRAIN-02  | Phase 4 | Complete |
+| EVAL-03   | Phase 4 | Complete |
 | WEAK-01   | Phase 5 | Pending |
 | WEAK-02   | Phase 5 | Pending |
 | MODEL-03  | Phase 6 | Pending |
