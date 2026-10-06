@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rsna-knee"
+version = "0.1.0"
+description = "RSNA Knee Abnormality Detection Competitive Pipeline"
+authors = [{ name = "RSNA Team" }]
+dependencies = [
+    "numpy>=1.26.0",
+    "pydicom>=2.4.0",
+    "opencv-python-headless>=4.9.0",
+    "torch>=2.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
