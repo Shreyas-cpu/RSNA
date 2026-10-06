@@ -8,7 +8,7 @@ This roadmap lays out an iterative, vertical MVP journey from raw multi-series D
 
 - [x] **Phase 1: Fast DICOM Ingestion & Slab Caching Engine** - High-speed C++ DICOM decoding, plane categorization, windowing, and 2.5D slab caching.
 - [x] **Phase 2: Leakage-Free Stratified Group Validation Harness** - 5-fold Stratified Group K-Fold split and macro-averaged ROC AUC metric tracker.
-- [ ] **Phase 3: 2.5D Multi-Slice Vision Model & Attention Pooling** - timm vision backbone with Gated Attention / MIL pooling and 12-class prediction head.
+- [x] **Phase 3: 2.5D Multi-Slice Vision Model & Attention Pooling** - timm vision backbone with Gated Attention / MIL pooling and 12-class prediction head.
 - [ ] **Phase 4: Class-Balanced Training & Baseline V9 Reproduction** - Mixed-precision training with positive-class weighting reproducing and beating the 0.584 baseline locally.
 - [ ] **Phase 5: Clinical Radiology Report Weak Supervision Engine** - LLM extraction of structured 12-class pseudo-probabilities from free-text reports in `train.csv`.
 - [ ] **Phase 6: Multi-Plane Feature Fusion & Joint Training** - Unified model fusing Sagittal, Coronal, and Axial representations trained on blended ground-truth and silver labels.
@@ -79,8 +79,8 @@ Plans:
 
 Plans:
 
-- [ ] 03-01: Build modular 2D slice feature extractor supporting ConvNeXt-V2 and EfficientNet-V2 backbones.
-- [ ] 03-02: Implement Gated Attention / MIL sequence aggregator and 12-class prediction head with unit tests.
+- [x] 03-01: Build modular 2D slice feature extractor supporting ConvNeXt-V2 and EfficientNet-V2 backbones.
+- [x] 03-02: Implement Gated Attention / MIL sequence aggregator and 12-class prediction head with unit tests.
 
 ---
 

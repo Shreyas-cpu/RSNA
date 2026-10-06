@@ -67,9 +67,9 @@
 | INGEST-04 | Phase 1 | Complete |
 | EVAL-01   | Phase 2 | Complete |
 | EVAL-02   | Phase 2 | Complete |
-| MODEL-01  | Phase 3 | Pending |
-| MODEL-02  | Phase 3 | Pending |
-| MODEL-04  | Phase 3 | Pending |
+| MODEL-01  | Phase 3 | Complete |
+| MODEL-02  | Phase 3 | Complete |
+| MODEL-04  | Phase 3 | Complete |
 | TRAIN-01  | Phase 4 | Pending |
 | TRAIN-02  | Phase 4 | Pending |
 | EVAL-03   | Phase 4 | Pending |
