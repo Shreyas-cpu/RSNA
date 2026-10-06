@@ -1,0 +1,14 @@
+{
+  "id": "promethious/rsna-knee-multiplane-attention-v1",
+  "title": "RSNA Knee Multi-Plane Attention Submission",
+  "code_file": "submission.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "false",
+  "dataset_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ]
+}

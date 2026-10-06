@@ -164,8 +164,8 @@ Plans:
 
 Plans:
 
-- [ ] 07-01: Build offline bundle packager (wheels, model checkpoints, and self-contained inference script).
-- [ ] 07-02: Implement post-inference verification suite and benchmark inference throughput on test data.
+- [x] 07-01: Build offline bundle packager (wheels, model checkpoints, and self-contained inference script).
+- [x] 07-02: Implement post-inference verification suite and benchmark inference throughput on test data.
 
 ## Progress
 
@@ -174,13 +174,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fast DICOM Ingestion & Slab Caching Engine | 0/2 | Not started | - |
-| 2. Leakage-Free Stratified Group Validation Harness | 0/1 | Not started | - |
-| 3. 2.5D Multi-Slice Vision Model & Attention Pooling | 0/2 | Not started | - |
-| 4. Class-Balanced Training & Baseline V9 Reproduction | 0/2 | Not started | - |
-| 5. Clinical Radiology Report Weak Supervision Engine | 0/2 | Not started | - |
-| 6. Multi-Plane Feature Fusion & Joint Training | 0/2 | Not started | - |
-| 7. Offline Kaggle Kernel Exporter & Efficiency Packaging | 0/2 | Not started | - |
+| 1. Fast DICOM Ingestion & Slab Caching Engine | 2/2 | Complete | 2026-10-06 |
+| 2. Leakage-Free Stratified Group Validation Harness | 1/1 | Complete | 2026-10-06 |
+| 3. 2.5D Multi-Slice Vision Model & Attention Pooling | 2/2 | Complete | 2026-10-06 |
+| 4. Class-Balanced Training & Baseline V9 Reproduction | 2/2 | Complete | 2026-10-06 |
+| 5. Clinical Radiology Report Weak Supervision Engine | 2/2 | Complete | 2026-10-06 |
+| 6. Multi-Plane Feature Fusion & Joint Training | 2/2 | Complete | 2026-10-06 |
+| 7. Offline Kaggle Kernel Exporter & Efficiency Packaging | 2/2 | Complete | 2026-10-06 |
 
 ---
 *Roadmap defined: 2026-10-06*  

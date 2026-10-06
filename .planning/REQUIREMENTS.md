@@ -77,10 +77,10 @@
 | WEAK-02   | Phase 5 | Complete |
 | MODEL-03  | Phase 6 | Complete |
 | TRAIN-03  | Phase 6 | Complete |
-| SUBMIT-01 | Phase 7 | Pending |
-| SUBMIT-02 | Phase 7 | Pending |
-| SUBMIT-03 | Phase 7 | Pending |
-| SUBMIT-04 | Phase 7 | Pending |
+| SUBMIT-01 | Phase 7 | Complete |
+| SUBMIT-02 | Phase 7 | Complete |
+| SUBMIT-03 | Phase 7 | Complete |
+| SUBMIT-04 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 19 total
