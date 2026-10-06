@@ -7,7 +7,7 @@ This roadmap lays out an iterative, vertical MVP journey from raw multi-series D
 ## Phases
 
 - [x] **Phase 1: Fast DICOM Ingestion & Slab Caching Engine** - High-speed C++ DICOM decoding, plane categorization, windowing, and 2.5D slab caching.
-- [ ] **Phase 2: Leakage-Free Stratified Group Validation Harness** - 5-fold Stratified Group K-Fold split and macro-averaged ROC AUC metric tracker.
+- [x] **Phase 2: Leakage-Free Stratified Group Validation Harness** - 5-fold Stratified Group K-Fold split and macro-averaged ROC AUC metric tracker.
 - [ ] **Phase 3: 2.5D Multi-Slice Vision Model & Attention Pooling** - timm vision backbone with Gated Attention / MIL pooling and 12-class prediction head.
 - [ ] **Phase 4: Class-Balanced Training & Baseline V9 Reproduction** - Mixed-precision training with positive-class weighting reproducing and beating the 0.584 baseline locally.
 - [ ] **Phase 5: Clinical Radiology Report Weak Supervision Engine** - LLM extraction of structured 12-class pseudo-probabilities from free-text reports in `train.csv`.
@@ -58,7 +58,7 @@ Plans:
 
 Plans:
 
-- [ ] 02-01: Build Stratified Group K-Fold split generator and standalone Macro AUC ROC evaluation harness.
+- [x] 02-01: Build Stratified Group K-Fold split generator and standalone Macro AUC ROC evaluation harness.
 
 ---
 

@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
-current_phase: 1
-current_phase_name: Fast DICOM Ingestion & Slab Caching Engine
+current_phase: 2
+current_phase_name: Leakage-Free Stratified Group Validation Harness
 status: completed
-stopped_at: Completed Phase 1 (Plans 01-01 and 01-02 verified). Ready to plan Phase 2.
-last_updated: "2026-10-06T16:22:00.000Z"
+stopped_at: Completed Phase 2 (Plan 02-01 verified). Ready to plan Phase 3.
+last_updated: "2026-10-06T16:42:30.000Z"
 last_activity: 2026-10-06
-last_activity_desc: Completed Phase 1 with 18 unit/integration tests passing and 2.16ms/slice throughput
-state_head: ce403d1
+last_activity_desc: Completed Phase 2 with 27 unit/integration tests passing and verified 5-fold leak-free split and exact macro AUC evaluator
+state_head: 038b226
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 13
-  completed_plans: 2
-  percent: 15
+  completed_plans: 3
+  percent: 23
 ---
 
 # Project State
@@ -23,31 +23,31 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-10-06)
 
 **Core value:** Beat the 0.584 Public AUC baseline with a robust, reproducible 2.5D multi-plane attention architecture and generate submission-ready Kaggle kernels under strict runtime limits.  
-**Current focus:** Phase 1 complete; Ready for Phase 2: Leakage-Free Stratified Group Validation Harness  
+**Current focus:** Phase 2 complete; Ready for Phase 3: 2.5D Multi-Slice Vision Model & Attention Pooling  
 
 ## Current Position
 
-Phase: 1 (Fast DICOM Ingestion & Slab Caching Engine) — COMPLETED
-Plan: 2 of 2 in Phase 1 complete  
-Status: Phase 1 Completed & Verified (18/18 tests green)
-Last activity: 2026-10-06 — Completed Phase 1 with fast C++ DICOM reader, plane classifier, 2.5D slab extractor, and PyTorch dataset cache  
+Phase: 2 (Leakage-Free Stratified Group Validation Harness) — COMPLETED
+Plan: 1 of 1 in Phase 2 complete  
+Status: Phase 2 Completed & Verified (27/27 tests green)
+Last activity: 2026-10-06 — Completed Phase 2 with Stratified Group K-Fold, leak verification, exact Macro ROC AUC evaluator, and MetricTracker  
 
-Progress: [█░░░░░░░░░] 15%
+Progress: [██░░░░░░░░] 23%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: ~15 min
-- Total execution time: 0.5 hours
+- Total execution time: 0.75 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Fast DICOM Ingestion & Slab Caching Engine | 2/2 | 100% | ~15m |
-| 2. Leakage-Free Stratified Group Validation Harness | 0/1 | - | - |
+| 2. Leakage-Free Stratified Group Validation Harness | 1/1 | 100% | ~15m |
 | 3. 2.5D Multi-Slice Vision Model & Attention Pooling | 0/2 | - | - |
 | 4. Class-Balanced Training & Baseline V9 Reproduction | 0/2 | - | - |
 | 5. Clinical Radiology Report Weak Supervision Engine | 0/2 | - | - |
