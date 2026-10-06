@@ -19,11 +19,11 @@ A knee MRI study folder containing multi-slice DICOM series is ingested by the C
 
 ## Stack Touched in Phase 1
 
-- [ ] Project scaffold (`src/`, `tests/`, `pyproject.toml`)
-- [ ] DICOM Reader (`dicomsdl` with fallback to `pydicom` + `pylibjpeg`)
-- [ ] Plane Classifier (`ImageOrientationPatient` cross product normal vector)
-- [ ] 2.5D Slab Extractor (windowing, percentile clipping, 3-slice stack)
-- [ ] Dataset & Cache Streamer (PyTorch `Dataset` streaming cached slabs)
+- [x] Project scaffold (`src/`, `tests/`, `pyproject.toml`)
+- [x] DICOM Reader (`dicomsdl` with fallback to `pydicom` + `pylibjpeg`)
+- [x] Plane Classifier (`ImageOrientationPatient` cross product normal vector)
+- [x] 2.5D Slab Extractor (windowing, percentile clipping, 3-slice stack)
+- [x] Dataset & Cache Streamer (PyTorch `Dataset` streaming cached slabs)
 
 ## Out of Scope (Deferred to Later Slices)
 
