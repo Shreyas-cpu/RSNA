@@ -93,6 +93,7 @@ class SlabExtractor:
         target_shape: Optional[Tuple[int, int]] = None,
         window_center: Optional[float] = None,
         window_width: Optional[float] = None,
+        as_uint8: bool = False,
     ) -> np.ndarray:
         """Extract num_slabs 3-channel contiguous slabs from volume array.
 
@@ -102,9 +103,10 @@ class SlabExtractor:
             target_shape: Optional override for spatial (H, W) resolution.
             window_center: Optional window center.
             window_width: Optional window width.
+            as_uint8: If True, quantizes output to uint8 in [0, 255] for 4x disk compression.
 
         Returns:
-            Array of shape (num_slabs, 3, target_H, target_W) with dtype float32.
+            Array of shape (num_slabs, 3, target_H, target_W) with dtype float32 or uint8.
         """
         if volume_array.ndim == 2:
             volume_array = volume_array[np.newaxis, ...]
@@ -133,4 +135,7 @@ class SlabExtractor:
             resized_slab = self.resize_slab(slab, out_shape)
             slabs.append(resized_slab)
 
-        return np.stack(slabs, axis=0).astype(np.float32)
+        stacked = np.stack(slabs, axis=0)
+        if as_uint8:
+            return np.clip(stacked * 255.0, 0, 255).astype(np.uint8)
+        return stacked.astype(np.float32)

@@ -1,13 +1,19 @@
 {
-  "id": "promethious/rsna-knee-multiplane-attention-v1",
+  "id": "shreyasmudholkar/rsna-knee-multi-plane-attention-submission",
   "title": "RSNA Knee Multi-Plane Attention Submission",
-  "code_file": "submission.py",
+  "code_file": "rsna_knee_submission.ipynb",
   "language": "python",
-  "kernel_type": "script",
+  "kernel_type": "notebook",
   "is_private": "true",
   "enable_gpu": "true",
   "enable_internet": "false",
-  "dataset_sources": [],
+  "dataset_sources": [
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "mattiaangeli/knee-mri-fold-weights",
+    "shigechan/radimagenet-resnet50-official",
+    "antoinegg1/rsna-knee-e11-diverse-heads-v20"
+  ],
   "competition_sources": [
     "rsna-knee-abnormality-detection"
   ]

@@ -16,6 +16,21 @@ from src.models.attention import GatedAttentionPool
 from src.models.backbone import SliceBackbone
 
 PLANES_DEFAULT = ("sagittal", "coronal", "axial")
+SLOTS_6_DEFAULT = (
+    "sagittal_fs",
+    "coronal_fs",
+    "axial_fs",
+    "sagittal_t1",
+    "coronal_t1",
+    "axial_t1",
+)
+
+
+def get_slot_name(plane: str, is_fluid_sensitive: bool = True) -> str:
+    """Resolve canonical slot name from anatomical plane and contrast sensitivity."""
+    clean_plane = plane.strip().lower()
+    suffix = "fs" if is_fluid_sensitive else "t1"
+    return f"{clean_plane}_{suffix}"
 
 
 class MultiPlaneFusion(nn.Module):

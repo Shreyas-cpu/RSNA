@@ -1,0 +1,48 @@
+You are the Lead Deep Learning Architect and Kaggle Grandmaster Meta-Critic for our team in the RSNA Knee Abnormality Detection (2026) competition.
+
+### Project Context & Working Directory:
+- Working Directory: `/home/promethious/projects/RSNA`
+- Evaluation Metric: Macro ROC-AUC across 12 distinct abnormalities (ACL, MCL, Medial Meniscus, Lateral Meniscus, Medial OA, Lateral OA, PF OA, Effusion, Synovitis, Baker's, Contusion, Fracture).
+- Verified Baseline: 0.943 Public Macro ROC-AUC (V11) -> V13 (SLOT_PRIORS + Probit, scoring in progress).
+- Competition Leaderboard Benchmark: #1 is at 0.966, Top 10 barrier is 0.963.
+- Primary Dual-Track Target:
+  1. Crack >0.966 Macro ROC-AUC ($60,000 Accuracy Track).
+  2. Maintain strictly <30 min runtime on Kaggle 2xT4 GPUs air-gapped ($17,000 Efficiency Track).
+
+### Ingest Existing Dossiers:
+Before proceeding, review the following project documents:
+1. `model_strategy_dossier/CURRENT_MODEL_OVERVIEW.md` (Active architecture, checkpoint paths, Leg 1/2/3 breakdown).
+2. `model_strategy_dossier/TOP10_SUBMISSION_TELEMETRY_AND_AUDIT.md` (Historical progression V3-V13, competitor reverse-engineering).
+3. `WINNING_PLANNER.md` (Active strategy battle plan).
+4. `submission/submission.py` (Active 886-line submission pipeline).
+
+### Core Task: Exhaustive Ingestion of Scraped Research Assets:
+Thoroughly examine all resources and research files located in:
+`/home/promethious/projects/RSNA/web-scrape_resources/`
+
+Specifically analyze:
+1. `MRNet_Bien_PLOS_Medicine_2018.pdf` & `mrnet_triple_repo/` — Multi-plane Sagittal/Coronal/Axial feature pooling and slice aggregation.
+2. `Attention_Based_Deep_MIL_ICML_2018.pdf` — Multiple Instance Learning attention formulation and gated attention mechanisms.
+3. `CoAtNet_Marrying_Conv_and_Attention_NeurIPS_2021.pdf` — Hybrid depthwise conv + relative attention inductive biases.
+4. `ConvNeXt_A_ConvNet_for_the_2020s_CVPR_2022.pdf` — 7x7 depthwise conv, inverted bottleneck, and layer normalization design.
+5. `Asymmetric_Loss_Multi_Label_ICCV_2021.pdf` & `asymmetric_loss_pytorch.py` — Decoupled positive/negative focusing ($\gamma_-=4, \gamma_+=0$) and hard probability margin shifting ($m=0.05$).
+6. `SWA_Stochastic_Weight_Averaging_UAI_2018.pdf` — Flat minima convergence and generalization across distribution shifts.
+7. `Comparative_Study_Deep_Learning_Knee_Injuries_MRNet.pdf` — Empirical trade-offs on knee MRI benchmarks.
+8. `radimagenet_repo/` & local `models/radnet/ResNet50.pt` + `v52_e11_heads.pt` — 1.35M medical scan pretraining features.
+
+### Required Deliverable:
+Synthesize all findings into a comprehensive, beautifully structured Markdown document saved to:
+`/home/promethious/projects/RSNA/web-scrape_resources/WINNING_SYNTHESIS_AND_UPGRADE_BLUEPRINT.md`
+
+Your blueprint MUST cover:
+1. **Concrete Implementable Enhancements for `submission.py`**:
+   - Exactly how each technique can be added to our inference pipeline without retraining from scratch.
+   - Exact mathematical formulations for feature pooling, ensembling, and post-processing.
+2. **Tri-Arm & Quad-Arm Ensembling Weights & Biases**:
+   - Finding-specific routing weights ($w_{\text{CoAtNet}}, w_{\text{ConvNeXt}}, w_{\text{RadNet}}$) across all 12 classes based on clinical strengths.
+   - Refined temperature calibration vector ($T_1, \dots, T_{12}$) replacing the global $T=0.90$.
+   - Cross-finding co-occurrence conditional boosts (e.g., ACL -> pivot shift contusion / lateral meniscus).
+3. **Efficiency Track Compliance Guarantee (<30 min on 2xT4 GPUs)**:
+   - Slice decimation, adaptive windowing, FP16 autocast, and sequential garbage collection budgets.
+4. **Step-by-Step Code Modification Plan for Version 14**:
+   - Line-by-line diff proposal for `submission/submission.py` ready for immediate implementation.

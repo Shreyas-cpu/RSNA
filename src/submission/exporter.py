@@ -35,7 +35,10 @@ import torch.nn.functional as F
 # Competition Target Column Order
 TARGET_COLS = __TARGET_COLS_PLACEHOLDER__
 
-DATA_DIR = Path("/kaggle/input/rsna-knee-abnormality-detection")
+# Competition Input Directory Detection
+DATA_DIR = Path("/kaggle/input/competitions/rsna-knee-abnormality-detection")
+if not DATA_DIR.exists():
+    DATA_DIR = Path("/kaggle/input/rsna-knee-abnormality-detection")
 if not DATA_DIR.exists():
     DATA_DIR = Path("data")
 
@@ -230,20 +233,46 @@ def run_inference():
         except Exception as e:
             print(f"Warning loading weights: {e}")
 
-    # Load test studies
+    global DATA_DIR
+    print(f"Initial DATA_DIR: {DATA_DIR}")
+
+    # 1. Dynamically locate competition test metadata
     test_csv = DATA_DIR / "test.csv"
-    if test_csv.exists():
+    sample_sub_path = DATA_DIR / "sample_submission.csv"
+
+    if not test_csv.exists() and not sample_sub_path.exists():
+        if Path("/kaggle/input").exists():
+            for csv_cand in Path("/kaggle/input").glob("**/*.csv"):
+                if csv_cand.name in ("sample_submission.csv", "test.csv"):
+                    DATA_DIR = csv_cand.parent
+                    test_csv = DATA_DIR / "test.csv"
+                    sample_sub_path = DATA_DIR / "sample_submission.csv"
+                    print(f"Discovered competition DATA_DIR at: {DATA_DIR}")
+                    break
+
+    # Load test studies and evaluation columns
+    if sample_sub_path.exists():
+        sub_template = pd.read_csv(sample_sub_path)
+        eval_cols = [c for c in sub_template.columns if c != "StudyInstanceUID"]
+        test_df = sub_template[["StudyInstanceUID"]].copy()
+    elif test_csv.exists():
         test_df = pd.read_csv(test_csv)
+        eval_cols = TARGET_COLS
     else:
-        # Fallback if testing locally
-        sample_sub = DATA_DIR / "sample_submission.csv"
-        if sample_sub.exists():
-            test_df = pd.read_csv(sample_sub)
-        else:
-            test_df = pd.DataFrame({"StudyInstanceUID": ["test_study_001"]})
+        test_df = pd.DataFrame({"StudyInstanceUID": ["test_study_001"]})
+        eval_cols = TARGET_COLS
 
     print(f"Total test studies: {len(test_df)}")
     test_series_dir = DATA_DIR / "test_series"
+    if not test_series_dir.exists() and Path("/kaggle/input").exists():
+        for cand_s in Path("/kaggle/input").glob("**/test_series"):
+            if cand_s.is_dir():
+                test_series_dir = cand_s
+                break
+
+    # Load test_series.csv if available for instant plane routing
+    test_series_csv = DATA_DIR / "test_series.csv"
+    series_df = pd.read_csv(test_series_csv) if test_series_csv.exists() else None
 
     results = []
     start_time = time.time()
@@ -254,14 +283,44 @@ def run_inference():
             study_path = test_series_dir / study_id
 
             plane_tensors = {}
-            if study_path.exists():
+            if series_df is not None and not series_df.empty and study_path.exists():
+                study_series = series_df[series_df["StudyInstanceUID"] == study_id]
+                for p_name in ["sagittal", "coronal", "axial"]:
+                    matched = study_series[study_series["Anatomical_Plane"].astype(str).str.lower() == p_name]
+                    if matched.empty:
+                        continue
+                    if "Fluid_Sensitive" in matched.columns and (matched["Fluid_Sensitive"] == 1).any():
+                        s_uid = matched[matched["Fluid_Sensitive"] == 1].iloc[0]["SeriesInstanceUID"]
+                    else:
+                        s_uid = matched.iloc[0]["SeriesInstanceUID"]
+                    s_path = study_path / str(s_uid)
+                    if not s_path.exists():
+                        continue
+                    dcm_files = sorted(list(s_path.glob("*.dcm")))
+                    if not dcm_files:
+                        continue
+                    slices, z_positions = [], []
+                    for d_file in dcm_files[:30]:
+                        try:
+                            arr, iop, z = read_dicom_slice(d_file)
+                            slices.append(arr)
+                            z_positions.append(z)
+                        except Exception:
+                            continue
+                    if slices:
+                        order = np.argsort(z_positions)
+                        vol = np.stack([slices[i] for i in order], axis=0)
+                        slab_tensor = extract_25d_slabs(vol, num_slabs=4, target_shape=(256, 256))
+                        plane_tensors[p_name] = slab_tensor.unsqueeze(0).to(device)
+
+            if not plane_tensors and study_path.exists():
                 series_folders = [f for f in study_path.iterdir() if f.is_dir()]
                 for s_dir in series_folders:
                     dcm_files = sorted(list(s_dir.glob("*.dcm")))
                     if not dcm_files:
                         continue
                     slices, z_positions, plane_name = [], [], None
-                    for d_file in dcm_files[:30]:  # Limit max slices for speed
+                    for d_file in dcm_files[:30]:
                         try:
                             arr, iop, z = read_dicom_slice(d_file)
                             slices.append(arr)
@@ -272,36 +331,54 @@ def run_inference():
                             continue
 
                     if slices and plane_name:
-                        # Sort by z-position
                         order = np.argsort(z_positions)
                         vol = np.stack([slices[i] for i in order], axis=0)
                         slab_tensor = extract_25d_slabs(vol, num_slabs=4, target_shape=(256, 256))
                         plane_tensors[plane_name] = slab_tensor.unsqueeze(0).to(device)
 
             if not plane_tensors:
-                # Corrupted or missing: fallback to prior
-                probs = np.full((1, len(TARGET_COLS)), 0.10, dtype=np.float32)
+                probs = np.full((1, len(eval_cols)), 0.10, dtype=np.float32)
             else:
-                # Predict probabilities
                 with torch.autocast(device_type=device.type, enabled=True):
                     probs = model.predict_proba(plane_tensors)
 
             res_entry = {"StudyInstanceUID": study_id}
-            for c_idx, c_name in enumerate(TARGET_COLS):
-                res_entry[c_name] = float(np.clip(probs[0, c_idx], 0.0, 1.0))
+            for c_idx, c_name in enumerate(eval_cols):
+                prob_val = probs[0, c_idx] if c_idx < probs.shape[1] else 0.10
+                res_entry[c_name] = float(np.clip(prob_val, 0.0, 1.0))
             results.append(res_entry)
 
     elapsed = time.time() - start_time
     print(f"Inference complete in {elapsed:.2f}s ({elapsed / max(1, len(test_df)):.3f}s/study).")
 
-    sub_df = pd.DataFrame(results)
-    sub_df.to_csv(OUTPUT_CSV, index=False)
-    print(f"Saved submission to {OUTPUT_CSV} with shape {sub_df.shape}.")
+    sub_df = pd.DataFrame(results)[["StudyInstanceUID"] + eval_cols]
+    sub_df.to_csv("submission.csv", index=False)
+    if Path("/kaggle/working").exists():
+        sub_df.to_csv("/kaggle/working/submission.csv", index=False)
+    print(f"Saved submission to submission.csv with shape {sub_df.shape}.")
+    print(f"Columns: {list(sub_df.columns)}")
+    print(sub_df.head())
 
 
 if __name__ == "__main__":
     run_inference()
 '''
+
+
+OFFICIAL_TARGET_COLS: List[str] = [
+    "ACL",
+    "MCL",
+    "Medial Meniscus",
+    "Lateral Meniscus",
+    "Medial OA",
+    "Lateral OA",
+    "PF OA",
+    "Effusion",
+    "Synovitis",
+    "Baker's",
+    "Contusion",
+    "Fracture",
+]
 
 
 class SubmissionExporter:
@@ -313,7 +390,7 @@ class SubmissionExporter:
         Args:
             target_cols: List of 12 target column names.
         """
-        self.target_cols = target_cols or DEFAULT_TARGET_COLS
+        self.target_cols = target_cols or OFFICIAL_TARGET_COLS
 
     def export_standalone_script(
         self,
@@ -353,6 +430,7 @@ class SubmissionExporter:
             "cells": [
                 {
                     "cell_type": "markdown",
+                    "id": "cell_markdown_header",
                     "metadata": {},
                     "source": [
                         "# RSNA Knee Abnormality Detection - 2.5D Multi-Plane Submission\n",
@@ -361,6 +439,7 @@ class SubmissionExporter:
                 },
                 {
                     "cell_type": "code",
+                    "id": "cell_code_inference",
                     "execution_count": None,
                     "metadata": {},
                     "outputs": [],

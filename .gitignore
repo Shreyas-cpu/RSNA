@@ -1,5 +1,42 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
 .venv/
+venv/
+ENV/
+
+# Testing & caching
 .pytest_cache/
+.coverage
+htmlcov/
 *.npz
+
+# Model weights & large binaries (keep git repo light)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.weights
+checkpoints/
+models/
+
+# Dataset directories & raw DICOMs
+data/
+outputs/
+output*/
+submission_v*_output/
+temp_*/
+research_top_*/
+
+# Logs & scratch
+logs/
+*.log
+_sota_0949.csv
+submission.csv
+
+# System & OS
+.DS_Store
+Thumbs.db

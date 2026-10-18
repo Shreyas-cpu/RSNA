@@ -6,43 +6,43 @@
     {
       "number": "1",
       "name": "Fast DICOM Ingestion & Slab Caching Engine",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "2",
       "name": "Leakage-Free Stratified Group Validation Harness",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "3",
       "name": "2.5D Multi-Slice Vision Model & Attention Pooling",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "4",
       "name": "Class-Balanced Training & Baseline V9 Reproduction",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "5",
       "name": "Clinical Radiology Report Weak Supervision Engine",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "6",
       "name": "Multi-Plane Feature Fusion & Joint Training",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "7",
       "name": "Offline Kaggle Kernel Exporter & Efficiency Packaging",
-      "status": "pending"
+      "status": "complete"
     }
   ],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 1 of 7 · 0% · executing"
+    "command": "/gsd-new-milestone",
+    "label": "Start a new milestone",
+    "reason": "All phases complete — start a new milestone"
   },
-  "updated_at": "2026-10-06T10:19:53.233Z"
+  "updated_at": "2026-10-11T11:38:51.885Z"
 }

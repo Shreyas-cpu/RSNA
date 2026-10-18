@@ -153,12 +153,20 @@ class RSNAKneeDataset(Dataset):
 
         with np.load(cache_path) as npz:
             if "slabs" in npz:
-                return npz["slabs"].astype(np.float32)
+                arr = npz["slabs"]
+                if arr.dtype == np.uint8:
+                    return (arr.astype(np.float32) / 255.0)
+                return arr.astype(np.float32)
             # Reconstruct from planes
             combined = []
             for plane in PLANES:
                 if plane in npz:
-                    combined.append(npz[plane])
+                    p_arr = npz[plane]
+                    if p_arr.dtype == np.uint8:
+                        p_arr = p_arr.astype(np.float32) / 255.0
+                    else:
+                        p_arr = p_arr.astype(np.float32)
+                    combined.append(p_arr)
                 else:
                     combined.append(
                         np.zeros(

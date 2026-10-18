@@ -182,6 +182,28 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 6. Multi-Plane Feature Fusion & Joint Training | 2/2 | Complete | 2026-10-06 |
 | 7. Offline Kaggle Kernel Exporter & Efficiency Packaging | 2/2 | Complete | 2026-10-06 |
 
+### Phase 8: Grandmaster 0.950+ Dual-Arm SWA and ConvNeXt Latent Probit Fusion Engine
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 8 to break down)
+
+### Phase 9: Grandmaster 0.950+ Tri-Arm SWA and Dense Probit Fusion Engine
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 9 to break down)
+
 ---
 *Roadmap defined: 2026-10-06*  
 *Last updated: 2026-10-06 after initialization*
