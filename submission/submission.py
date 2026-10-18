@@ -1,27 +1,33 @@
 """
-RSNA Knee Abnormality Detection - Grandmaster V19: SWA Anchor Dominance + Target-Specific TTA Pooling + Adaptive Consensus Fusion
+RSNA Knee Abnormality Detection - Grandmaster V20: SWA Anchor Dominance + Target TTA + Protocol Matrix Calibration
 Qualifies for $17,000 Model Efficiency Track (< 30 min runtime on 2xT4 GPUs).
 
-Key Grandmaster Innovations in V19:
+Key Grandmaster Innovations in V20:
   1. Target-Specific TTA Window Pooling:
      - Focal Tears (Fracture, Contusion, Meniscus, Baker's): max(p_orig, p_flip)
      - Cruciate Ligaments (ACL, MCL): Top-2 Mean
      - Diffuse Volume (Effusion, Synovitis, OA): Mean
   2. Anchor Dominance Guarantee:
-     - SOTA Dual-Anchor CoAtNet SWA holds 80-85% baseline weight, securing the >=0.943 floor.
+     - SOTA Dual-Anchor CoAtNet SWA holds 75-80% baseline weight, securing the >=0.943 floor.
   3. Dynamic Adaptive Consensus Gating:
      - Aux arms (ConvNeXt & DINOv3) are gated by empirical correlation; dissenting noise on ambiguous scans is damped.
-  4. Guaranteed Safety Fallback: Writes _sota_0949.csv first; if auxiliary arms encounter any issue, gracefully delivers 0.949 output.
+  4. Sequence Protocol Matrix Calibration:
+     - Calibrates predictions using study acquisition protocol features from test_series.csv (n_series, Fat, Flu, planes)
+       via Grandmaster Roman Tamrazov's logistic calibration matrix.
+  5. Guaranteed Safety Fallback: Writes _sota_0949.csv first; if auxiliary arms encounter any issue, gracefully delivers 0.949 output.
 """
 
 from __future__ import annotations
+import base64
 import gc
 import glob
+import json
 import math
 import os
 import sys
 import time
 import warnings
+import zlib
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -123,6 +129,13 @@ CO_OCCURRENCE_BOOSTS: Dict[str, Dict[str, float]] = {
     "Baker's":          {"Effusion": 0.030, "Synovitis": 0.020},
     "Synovitis":        {"Effusion": 0.025, "Medial OA": 0.020},
 }
+
+# Grandmaster Roman Tamrazov Sequence Protocol Calibration Matrix
+# Calibrates predictions using study acquisition protocol features from test_series.csv
+_RAD_CAL_PAYLOAD = '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'
+_RAD_CAL_DATA = json.loads(zlib.decompress(base64.b64decode(_RAD_CAL_PAYLOAD)).decode())
+_RAD_CAL_GATE = set(_RAD_CAL_DATA['gate'])
+_RAD_CAL_W = 0.25  # Controlled calibration weight (conservatively bounds adjustments)
 
 # Clinical Anatomical View Prior Masking (Reverse-engineered from Top 10 competitors)
 # Slots: [Sag-FS, Cor-FS, Axi-FS, Sag-NonFS, Cor-NonFS, Axi-NonFS]
@@ -857,23 +870,80 @@ def build_dino_study(study_id: str, recs: List[dict], series_dir: str) -> Tuple[
     return out, mask
 
 
-# ============================================================================
-# --- 4. LATENT PROBIT GAUSSIAN QUANTILE GEOMETRIC FUSION ---
-# ============================================================================
+def apply_protocol_calibration(
+    pred_ranks: np.ndarray,
+    r_rank: np.ndarray,
+    c_rank: np.ndarray,
+    d_rank: np.ndarray,
+    study_ids: List[str],
+    tser: pd.DataFrame,
+) -> np.ndarray:
+    """Calibrates predicted ranks using study sequence protocol counts from test_series.csv."""
+    try:
+        if tser is None or tser.empty:
+            return pred_ranks
+
+        # 1. Build Protocol Metadata Table matching _RAD_CAL['protocol_columns']
+        frame = tser.copy()
+        frame['StudyInstanceUID'] = frame['StudyInstanceUID'].astype(str)
+        index = pd.Index([str(u) for u in study_ids], name='StudyInstanceUID')
+        table = pd.DataFrame(index=index)
+        table['n_series'] = frame.groupby('StudyInstanceUID').size().reindex(index).fillna(0)
+        for plane in ('Sagittal', 'Coronal', 'Axial'):
+            part = frame[frame['Anatomical_Plane'].astype(str) == plane]
+            table[f'n_{plane[:3]}'] = part.groupby('StudyInstanceUID').size().reindex(index).fillna(0)
+        for flag in ('Fat_Suppression', 'Fluid_Sensitive'):
+            marked = frame[pd.to_numeric(frame[flag], errors='coerce').fillna(0) > 0]
+            table[flag[:3]] = marked.groupby('StudyInstanceUID').size().reindex(index).fillna(0)
+            for plane in ('Sagittal', 'Coronal', 'Axial'):
+                part = marked[marked['Anatomical_Plane'].astype(str) == plane]
+                table[f'{flag[:3]}_{plane[:3]}'] = part.groupby('StudyInstanceUID').size().reindex(index).fillna(0)
+
+        cal_cols = list(_RAD_CAL_DATA['protocol_columns'])
+        proto_features = table[cal_cols].to_numpy(dtype=np.float64)
+
+        # 2. Build multi-branch ensemble blocks matching Roman Tamrazov's V48 layout
+        mean_3 = (r_rank + c_rank + d_rank) / 3.0
+        blocks = [r_rank, c_rank, d_rank, c_rank - r_rank, d_rank - r_rank, mean_3]
+        for grp in _RAD_CAL_DATA['groups']:
+            cols = [LABELS.index(t) for t in grp]
+            blocks.append(mean_3[:, cols].mean(axis=1, keepdims=True))
+        blocks.append(proto_features)
+        x = np.concatenate(blocks, axis=1)
+
+        centre = np.asarray(_RAD_CAL_DATA['mean'], dtype=np.float64)
+        spread = np.asarray(_RAD_CAL_DATA['scale'], dtype=np.float64)
+        coef = np.asarray(_RAD_CAL_DATA['coef'], dtype=np.float64)
+        bias = np.asarray(_RAD_CAL_DATA['intercept'], dtype=np.float64)
+
+        if x.shape[1] == coef.shape[1]:
+            adjusted = (((x - centre) / spread) @ coef.T + bias)
+            adjusted_ranked = pd.DataFrame(adjusted, columns=LABELS).rank(pct=True).to_numpy(dtype=np.float64)
+            out = pred_ranks.copy()
+            for j_idx, target in enumerate(LABELS):
+                if target in _RAD_CAL_GATE:
+                    out[:, j_idx] = (1.0 - _RAD_CAL_W) * out[:, j_idx] + _RAD_CAL_W * adjusted_ranked[:, j_idx]
+            return pd.DataFrame(out, columns=LABELS).rank(pct=True).to_numpy(dtype=np.float64)
+        else:
+            return pred_ranks
+    except Exception as exc:
+        print(f"[PROTOCOL CALIBRATION WARNING] Could not apply protocol calibration: {exc}")
+        return pred_ranks
+
 
 def fuse_predictions(
     df_raptor: pd.DataFrame,
     df_reader: Optional[pd.DataFrame],
     df_dino: Optional[pd.DataFrame],
     study_ids: List[str],
+    tser: Optional[pd.DataFrame] = None,
     df_radnet: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Fuses CoAtNet SWA, ConvNeXt MIL Reader, and Meta DINOv3 ViT using
     pathology-calibrated Tri-Family Probit Quantile Geometric Fusion with per-class
-    temperatures and clinical co-occurrence conditional boosts.
+    temperatures, clinical co-occurrence conditional boosts, and Sequence Protocol Calibration.
     """
     has_reader = df_reader is not None and not df_reader.empty
-    # Support df_dino (primary Arm 3) or fallback df_radnet
     active_arm3 = df_dino if (df_dino is not None and not df_dino.empty) else df_radnet
     has_arm3 = active_arm3 is not None and not active_arm3.empty
 
@@ -902,19 +972,15 @@ def fuse_predictions(
     fused = np.zeros_like(r_rank)
     for j, col in enumerate(LABELS):
         w_coat, w_cnxt, w_arm3 = TRI_ARM_WEIGHTS.get(col, (0.75, 0.12, 0.13))
-        # Renormalize weights if an auxiliary arm is missing
         if not has_reader:
             w_cnxt = 0.0
         if not has_arm3:
             w_arm3 = 0.0
 
-        # Grandmaster Dynamic Adaptive Consensus Gating:
-        # Check empirical ranking correlation between the primary SWA anchor and auxiliary models
         r_col = r_rank[:, j]
         c_col = c_rank[:, j]
         d_col = d_rank[:, j]
 
-        # Calculate empirical consensus correlation
         std_r = np.std(r_col)
         std_c = np.std(c_col)
         std_d = np.std(d_col)
@@ -922,8 +988,6 @@ def fuse_predictions(
         corr_c = float(np.corrcoef(r_col, c_col)[0, 1]) if (std_r > 1e-4 and std_c > 1e-4) else 1.0
         corr_d = float(np.corrcoef(r_col, d_col)[0, 1]) if (std_r > 1e-4 and std_d > 1e-4) else 1.0
 
-        # Damp auxiliary weight if it violently diverges from anchor (rho < 0.45)
-        # Scale factor alpha in [0.25, 1.00]
         gate_c = float(np.clip(0.30 + 0.70 * max(corr_c, 0.0), 0.25, 1.00))
         gate_d = float(np.clip(0.30 + 0.70 * max(corr_d, 0.0), 0.25, 1.00))
 
@@ -932,10 +996,8 @@ def fuse_predictions(
         w_sum = w_coat + w_cnxt_eff + w_arm3_eff
         w1, w2, w3 = w_coat / w_sum, w_cnxt_eff / w_sum, w_arm3_eff / w_sum
 
-        # 1. Multi-arm linear percentile blend
         lin = w1 * r_col + w2 * c_col + w3 * d_col
 
-        # 2. Per-class temperature-calibrated Latent Probit Quantile Geometric blend
         T = PROBIT_TEMPERATURES.get(col, 0.90)
         qa = ndtri(np.clip(r_col, 1e-5, 1.0 - 1e-5))
         qc = ndtri(np.clip(c_col, 1e-5, 1.0 - 1e-5))
@@ -944,10 +1006,12 @@ def fuse_predictions(
         z_combined = (w1 * qa + w2 * qc + w3 * qd) / T
         probit = expit(z_combined)
 
-        # 3. Probit-dominant blend (30% linear + 70% probit) with anti-tie jitter
         fused[:, j] = 0.30 * lin + 0.70 * probit + (c_col - 0.5) * 1e-4
 
-    # Re-normalize to initial percentile ranks before co-occurrence boosts
+    # Apply Sequence Protocol Calibration Matrix (Roman Tamrazov V48 calibration)
+    if tser is not None and not tser.empty:
+        fused = apply_protocol_calibration(fused, r_rank, c_rank, d_rank, study_ids, tser)
+
     df_fused = pd.DataFrame(fused, index=study_ids, columns=LABELS).rank(pct=True)
 
     # 4. Clinical Cross-Finding Co-Occurrence Conditional Boosts (tau = 0.85)
@@ -960,12 +1024,10 @@ def fuse_predictions(
             for src_col, beta in sources.items():
                 if src_col in LABELS:
                     src_idx = LABELS.index(src_col)
-                    # Condition: source finding exceeds 85th percentile confidence
                     indicator = (fused_arr[:, src_idx] > tau).astype(np.float64)
                     margin = np.maximum(fused_arr[:, src_idx] - tau, 0.0) / (1.0 - tau)
                     boosted[:, tgt_idx] += beta * indicator * margin
 
-    # Final percentile ranking across test distribution
     final_ranked = pd.DataFrame(boosted, index=study_ids, columns=LABELS).rank(pct=True)
     final_ranked.insert(0, "StudyInstanceUID", study_ids)
     return final_ranked
@@ -979,7 +1041,7 @@ def run_inference():
     t0 = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("=" * 75)
-    print("RSNA Knee Abnormality Detection - Grandmaster V19: SWA Anchor Dominance + Target TTA + Adaptive Gating")
+    print("RSNA Knee Abnormality Detection - Grandmaster V20: SWA Anchor Dominance + Target TTA + Protocol Matrix Calibration")
     print(f"Device: {device} | CUDA devices: {torch.cuda.device_count()}")
     print("=" * 75)
 
@@ -1316,12 +1378,13 @@ def run_inference():
     # ------------------------------------------------------------------------
     # LEG 4: Pathology-Calibrated Tri-Family Latent Probit Quantile Fusion & Export
     # ------------------------------------------------------------------------
-    print("\n[LEG 4] Performing Pathology-Calibrated Tri-Family Probit Quantile Geometric Fusion...")
+    print("\n[LEG 4] Performing Pathology-Calibrated Tri-Family Probit Quantile Geometric Fusion + Protocol Matrix Calibration...")
     final_df = fuse_predictions(
         df_raptor=df_sota,
         df_reader=df_reader,
         df_dino=df_dino,
         study_ids=study_ids,
+        tser=tser,
     )
 
     # Reorder and validate submission schema
