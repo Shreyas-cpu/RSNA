@@ -1,11 +1,11 @@
 """
-RSNA Knee Abnormality Detection - Grandmaster V14 0.966+ Tri-Arm SWA, ConvNeXt & RadNet Pipeline
+RSNA Knee Abnormality Detection - Grandmaster V18: Tri-Family SWA CoAtNet + ConvNeXt Bilateral TTA + Meta DINOv3 ViT
 Qualifies for $17,000 Model Efficiency Track (< 30 min runtime on 2xT4 GPUs).
 
-Tri-Arm Architecture:
+Tri-Family Architecture:
   Arm 1: SOTA CoAtNet-2 384 SWA + 224 Focal Crop SWA (bilateral TTA, 0.75/0.25 blend). Standalone: 0.949 AUC.
-  Arm 2: ConvNeXt-Tiny 2.5D MIL Reader (3-fold ensemble, 6 anatomical slots) + Clinical SLOT_PRIORS.
-  Arm 3: RadImageNet ResNet-50 Medical Foundation Arm (Pretrained on 1.35M CT/MRI scans, 5-fold heads).
+  Arm 2: ConvNeXt-Tiny 2.5D MIL Reader (3-fold ensemble, 6 anatomical slots) + Universal Bilateral TTA.
+  Arm 3: Meta DINOv3 ViT-Small Multi-Plane Arm (Pretrained with self-supervised ViT, 5-fold heads).
 Fusion:
   Per-Class Pathology Temperature Vector (T in [0.78, 1.10]) Latent Probit Quantile Geometric Ensemble (ndtri + expit).
   Clinical Cross-Finding Co-Occurrence Conditional Boosts (trauma & degenerative cascades).
@@ -56,26 +56,25 @@ LABELS: List[str] = [
     "Fracture",
 ]
 
-# Tri-Arm Routing Weights: (w_coatnet, w_convnext, w_radnet) — calibrated by clinical specialization
-# RadNet set to 0.0 to restore and elevate V15/V12 winning architecture
+# Tri-Arm Routing Weights: (w_coatnet, w_convnext, w_dinov3) — calibrated by clinical specialization
 TRI_ARM_WEIGHTS: Dict[str, Tuple[float, float, float]] = {
     # CoAtNet dominant — strong cruciate ligament/meniscus/fluid detection
-    "ACL":              (0.85, 0.15, 0.0),
-    "MCL":              (0.82, 0.18, 0.0),
-    "Medial Meniscus":  (0.85, 0.15, 0.0),
-    "Lateral Meniscus": (0.92, 0.08, 0.0),  # CoAtNet anchor near-perfect (0.96+)
+    "ACL":              (0.60, 0.15, 0.25),
+    "MCL":              (0.60, 0.15, 0.25),
+    "Medial Meniscus":  (0.60, 0.15, 0.25),
+    "Lateral Meniscus": (0.70, 0.10, 0.20),  # CoAtNet anchor near-perfect (0.96+)
     # ConvNeXt dominant — specialized on focal cysts, contusions, and lateral OA
-    "Baker's":          (0.50, 0.50, 0.0),  # ConvNeXt dominates (0.984 vs 0.940)
-    "Contusion":        (0.58, 0.42, 0.0),  # ConvNeXt bone marrow edema
-    "Lateral OA":       (0.62, 0.38, 0.0),  # ConvNeXt +0.079 AUC advantage
+    "Baker's":          (0.40, 0.45, 0.15),  # ConvNeXt dominates (0.984 vs 0.940)
+    "Contusion":        (0.40, 0.45, 0.15),  # ConvNeXt bone marrow edema
+    "Lateral OA":       (0.50, 0.35, 0.15),  # ConvNeXt +0.079 AUC advantage
     # Balanced joint-space assessment
-    "Medial OA":        (0.72, 0.28, 0.0),
-    "PF OA":            (0.80, 0.20, 0.0),
-    # Fluid-sensitive capsule findings
-    "Effusion":         (0.92, 0.08, 0.0),  # CoAtNet anchor near-perfect (0.98+)
-    "Synovitis":        (0.90, 0.10, 0.0),
+    "Medial OA":        (0.55, 0.25, 0.20),
+    "PF OA":            (0.60, 0.20, 0.20),
+    # Fluid-sensitive capsule findings — DINOv3 global ViT attention
+    "Effusion":         (0.65, 0.10, 0.25),  # CoAtNet anchor near-perfect (0.98+)
+    "Synovitis":        (0.60, 0.15, 0.25),
     # Cortical bone finding
-    "Fracture":         (0.88, 0.12, 0.0),
+    "Fracture":         (0.65, 0.20, 0.15),
 }
 
 # Per-Class Temperature Calibration Vector for Probit Gaussian Latent Space
@@ -596,188 +595,249 @@ class KneeNet(nn.Module):
 
 
 # ============================================================================
-# --- 3b. ARM 3: RADIMAGENET RESNET-50 FOUNDATION ARM ---
+# --- 3b. ARM 3: META DINOv3 ViT-SMALL FOUNDATION ARM ---
 # ============================================================================
 
-# RadNet slot schema (from v52_e11_heads.pt metadata):
-# 4 slots: SAG_NOFS(Sag T1/NonFS), COR_NOFS(Cor T1/NonFS), AX_NOFS(Ax T1/NonFS), SAG_FS(Sag FS)
-RADNET_SLOTS: List[Tuple[str, str, bool]] = [
-    ("SAG_NOFS", "Sagittal",  False),
-    ("COR_NOFS", "Coronal",   False),
-    ("AX_NOFS",  "Axial",     False),
-    ("SAG_FS",   "Sagittal",  True),
+N_SLOT_TYPES, MASK_IDX = (6, 0)
+DINO_SLOTS: List[Tuple[str, int]] = [
+    ("Sagittal", 1),
+    ("Sagittal", 0),
+    ("Coronal",  1),
+    ("Coronal",  0),
+    ("Axial",    1),
+    ("Axial",    0),
 ]
-RADNET_SLICES_PER_SLOT = 8
-RADNET_IMG = 224
-RADNET_CROP_MM = 130.0
-RADNET_FEAT_DIM = 2048
-RADNET_EMBED_DIM = 512
-RADNET_N_SLOTS = len(RADNET_SLOTS)
-RADNET_N_CLASSES = 12
+DINO_N_SLOTS = len(DINO_SLOTS)
+DINO_N_SLICE = 16
+DINO_SIZE = 336
+DINO_CROP_MM = 130.0
+DINO_SLICE_BAND = (0.12, 0.88)
 
 
-class RadImageNetEncoder(nn.Module):
-    """RadImageNet ResNet-50 encoder: backbone minus final pool+FC, with GAP."""
-    def __init__(self) -> None:
+class ViTSlotToken(nn.Module):
+    """Augments timm Vision Transformer with learnable anatomical slot tokens."""
+    def __init__(self, vit: nn.Module, n_cat: int, dim: Optional[int] = None) -> None:
         super().__init__()
-        import torchvision.models as tvm
-        self.backbone = nn.Sequential(*list(tvm.resnet50(weights=None).children())[:-2])
+        self.vit = vit
+        d = dim or vit.embed_dim
+        self.tok = nn.Embedding(n_cat + 1, d, padding_idx=MASK_IDX)
+        self.num_features = vit.num_features
+        self._orig_prefix = getattr(vit, "num_prefix_tokens", 1)
+        vit.num_prefix_tokens = self._orig_prefix + 1
+        for blk in vit.blocks:
+            a = getattr(blk, "attn", None)
+            if a is not None and hasattr(a, "num_prefix_tokens"):
+                a.num_prefix_tokens = a.num_prefix_tokens + 1
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, 3, H, W) -> (B, 2048)
-        return self.backbone(x).mean(dim=(2, 3))
+    @staticmethod
+    def _maybe(mod, x):
+        return x if mod is None else mod(x)
+
+    def forward_features(self, x: torch.Tensor, cat: torch.Tensor) -> torch.Tensor:
+        v = self.vit
+        x = v.patch_embed(x)
+        pos = v._pos_embed(x)
+        rope = None
+        if isinstance(pos, tuple):
+            x, rope = pos
+        else:
+            x = pos
+        x = self._maybe(getattr(v, "patch_drop", None), x)
+        x = self._maybe(getattr(v, "norm_pre", None), x)
+        npt = self._orig_prefix
+        tok = self.tok(cat).unsqueeze(1)
+        x = torch.cat([x[:, :npt], tok, x[:, npt:]], dim=1)
+        if rope is not None:
+            if getattr(v, "rope_mixed", False):
+                for i, blk in enumerate(v.blocks):
+                    x = blk(x, rope=rope[i])
+            else:
+                for blk in v.blocks:
+                    x = blk(x, rope=rope)
+        else:
+            x = v.blocks(x)
+        return v.norm(x)
+
+    def forward_head(self, x: torch.Tensor, pre_logits: bool = True) -> torch.Tensor:
+        return self.vit.forward_head(x, pre_logits=pre_logits)
 
 
-class FoundationQueryHead(nn.Module):
-    """Multi-query cross-attention head that matches the v52_e11_heads.pt state dict.
+def _seg_mean_max(v: torch.Tensor, sidx: torch.Tensor, B: int) -> torch.Tensor:
+    D = v.shape[1]
+    cnt = torch.zeros(B, device=v.device, dtype=v.dtype).index_add_(0, sidx, torch.ones(v.shape[0], device=v.device, dtype=v.dtype))
+    mean = torch.zeros(B, D, device=v.device, dtype=v.dtype).index_add_(0, sidx, v)
+    mean = mean / cnt.clamp(min=1).unsqueeze(1)
+    mx = torch.full((B, D), -10000.0, device=v.device, dtype=v.dtype)
+    mx = mx.scatter_reduce(0, sidx.unsqueeze(1).expand(-1, D), v, reduce="amax", include_self=True)
+    return torch.cat([mean, mx], 1)
 
-    Architecture (reverse-engineered from checkpoint keys):
-      project: LayerNorm(2048) → Linear(2048, 512)  [applied to each token]
-      fuse:    LayerNorm(2048) → Linear(2048, 512)   [aggregation projection]
-      attn:    nn.MultiheadAttention(512, 8, batch_first=True)
-      plane:   Embedding(4, 512)   — one per slot
-      position: Embedding(8, 512)  — one per slice index
-      query:   Parameter(12, 512)  — 12 disease queries
-      weight:  Parameter(12, 512)  — final bilinear head
-      bias:    Parameter(12)
-    """
-    def __init__(self) -> None:
+
+def _pad_kv(x: torch.Tensor, sidx: torch.Tensor, B: int, norm: nn.Module) -> Tuple[torch.Tensor, torch.Tensor]:
+    T, P, D = x.shape
+    cnt = torch.bincount(sidx, minlength=B)
+    S = int(cnt.max().item())
+    starts = torch.cumsum(cnt, 0) - cnt
+    pos = torch.arange(T, device=x.device) - starts[sidx]
+    pad = x.new_zeros(B, S, P, D)
+    pad[sidx, pos] = x
+    keep = torch.zeros(B, S, dtype=torch.bool, device=x.device)
+    keep[sidx, pos] = True
+    return (norm(pad.reshape(B, S * P, D)), ~keep.repeat_interleave(P, dim=1))
+
+
+class _GatedDelta(nn.Module):
+    def __init__(self, d: int, n_labels: int, n_heads: int, dropout: float) -> None:
         super().__init__()
-        D = RADNET_EMBED_DIM
-        self.project = nn.Sequential(nn.LayerNorm(RADNET_FEAT_DIM), nn.Linear(RADNET_FEAT_DIM, D))
-        self.fuse    = nn.Sequential(nn.LayerNorm(RADNET_FEAT_DIM), nn.Linear(RADNET_FEAT_DIM, D))
-        self.attn    = nn.MultiheadAttention(D, num_heads=8, batch_first=True)
-        # NOTE: checkpoint stores these as raw Parameter tensors, NOT nn.Embedding.
-        # Keys in state_dict are "plane" and "position" (not "plane.weight").
-        self.plane    = nn.Parameter(torch.zeros(RADNET_N_SLOTS, D))
-        self.position = nn.Parameter(torch.zeros(RADNET_SLICES_PER_SLOT, D))
-        self.query   = nn.Parameter(torch.zeros(RADNET_N_CLASSES, D))
-        self.weight  = nn.Parameter(torch.zeros(RADNET_N_CLASSES, D))
-        self.bias    = nn.Parameter(torch.zeros(RADNET_N_CLASSES))
+        self.q = nn.Parameter(torch.randn(n_labels, d) * 0.02)
+        self.kv_norm = nn.LayerNorm(d)
+        self.attn = nn.MultiheadAttention(d, n_heads, dropout=dropout, batch_first=True)
+        self.d_norm = nn.LayerNorm(d)
+        self.dw = nn.Parameter(torch.randn(n_labels, d) * (1.0 / (d ** 0.5)))
+        self.db = nn.Parameter(torch.zeros(n_labels))
+        self.gate = nn.Parameter(torch.zeros(n_labels))
 
-    def forward(self, feats: torch.Tensor, slot_mask: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            feats: (B, N_SLOTS, N_SLICES, 2048) raw encoder features
-            slot_mask: (B, N_SLOTS) bool — True if slot has data
-        Returns:
-            logits: (B, 12)
-        """
-        B, S, K, _ = feats.shape
-        device = feats.device
-
-        # Positional encoding — self.plane and self.position are nn.Parameter tensors
-        plane_emb = self.plane[:S].unsqueeze(1)               # (S, 1, D)
-        pos_emb   = self.position[:K].unsqueeze(0)            # (1, K, D)
-
-        # Project features from 2048 → 512 and add positional embeddings
-        # feats: (B, S, K, 2048) -> project -> (B, S, K, D) -> add embeddings -> (B, S*K, D)
-        tokens = self.project(feats) + (plane_emb + pos_emb).unsqueeze(0)  # (B, S, K, D)
-        tokens = tokens.view(B, S * K, -1)                        # (B, S*K, D)
-
-        # Build padding mask: slots with no data mask ALL their slices
-        pad_mask = ~slot_mask.unsqueeze(-1).expand(B, S, K).reshape(B, S * K)  # (B, S*K)
-        # If a study is completely missing all slots, un-mask to avoid NaN in attn
-        all_masked = pad_mask.all(dim=1, keepdim=True)
-        pad_mask = pad_mask & ~all_masked
-
-        # Query cross-attention: 12 disease queries attend over S*K tokens
-        queries = self.query.unsqueeze(0).expand(B, -1, -1)       # (B, 12, D)
-        attn_out, _ = self.attn(
-            query=queries,
-            key=tokens,
-            value=tokens,
-            key_padding_mask=pad_mask,
-        )  # attn_out: (B, 12, D)
-
-        # Final bilinear classification
-        logits = (attn_out * self.weight.unsqueeze(0)).sum(-1) + self.bias  # (B, 12)
-        return logits
+    def delta(self, pat: torch.Tensor, sidx: torch.Tensor, B: int, return_attn: bool = False):
+        kv, kpm = _pad_kv(pat, sidx, B, self.kv_norm)
+        q = self.q.unsqueeze(0).expand(B, -1, -1)
+        att, w = self.attn(q, kv, kv, key_padding_mask=kpm, need_weights=return_attn, average_attn_weights=True)
+        return ((self.d_norm(att) * self.dw).sum(-1) + self.db, w)
 
 
-def _radnet_pick_slot_series(rows: List[dict], plane: str, fluid_sensitive: bool, used: set) -> Optional[dict]:
-    """Pick the best series for a RadNet slot from test_series.csv records."""
-    def parse_flag(val) -> Optional[bool]:
-        if val is None:
-            return None
-        s = str(val).strip().lower()
-        if s in ("1", "true", "yes", "t", "y"):
-            return True
-        if s in ("0", "false", "no", "f", "n"):
-            return False
-        return None
+class CodexResidualPool(_GatedDelta):
+    def __init__(self, d: int, n_labels: int = 12, n_heads: int = 6, pe: int = 64, dropout: float = 0.2) -> None:
+        super().__init__(d, n_labels, n_heads, dropout)
+        self.base = nn.Sequential(nn.LayerNorm(2 * d + pe), nn.Dropout(dropout), nn.Linear(2 * d + pe, n_labels))
 
-    cands = [r for r in rows if r.get("Anatomical_Plane") == plane and r.get("SeriesInstanceUID") not in used]
-    pref = [r for r in cands if parse_flag(r.get("Fluid_Sensitive")) == fluid_sensitive
-            or parse_flag(r.get("Fat_Suppression")) == fluid_sensitive]
-    return (pref or cands)[0] if (pref or cands) else None
+    def forward(self, tok: torch.Tensor, slot: torch.Tensor, sidx: torch.Tensor, B: int, pres: torch.Tensor, return_attn: bool = False):
+        base = self.base(torch.cat([_seg_mean_max(tok[:, 0], sidx, B), pres], 1))
+        d_, w = self.delta(tok[:, 1:], sidx, B, return_attn)
+        return (base + self.gate * d_, w)
 
 
-def _radnet_load_slot(sdir: str, n_slices: int, crop_mm: float, img_size: int) -> Optional[np.ndarray]:
-    """Load and preprocess a DICOM series into (n_slices, 3, img_size, img_size) uint8 array."""
-    files = sorted(glob.glob(os.path.join(sdir, "*.dcm")))
-    if not files:
-        return None
-    slices_with_pos = []
-    ps_list = []
+class DINOReadout(nn.Module):
+    def __init__(self, pool_kind: str, d: int, n_labels: int = 12, pe: int = 64) -> None:
+        super().__init__()
+        self.pool_kind, self.k = (pool_kind, n_labels)
+        self.pres_emb = nn.Embedding(N_SLOT_TYPES + 1, pe, padding_idx=0)
+        self.pool = CodexResidualPool(d, n_labels, pe=pe)
+
+    def forward(self, f: torch.Tensor, slot: torch.Tensor, sidx: torch.Tensor, B: int, return_attn: bool = False) -> torch.Tensor:
+        pe = self.pres_emb(slot)
+        pres = torch.zeros(B, pe.shape[1], device=f.device, dtype=f.dtype).index_add_(0, sidx, pe)
+        return self.pool(f, slot, sidx, B, pres)[0]
+
+
+class DINOKneeNet(nn.Module):
+    """Full Meta DINOv3 ViT architecture matching the verified knee-mri-fold-weights state dict."""
+    def __init__(self, enc: nn.Module, cond: str = "token", n_meta: int = 0, pool: str = "xcodex", stem: str = "native", n_slice: int = 16) -> None:
+        super().__init__()
+        self.enc, self.cond = (enc, cond)
+        self.tokens = pool in ("xattn", "xres", "clsadd", "xcodex")
+        D = enc.num_features
+        self.readout = DINOReadout(pool, D)
+
+    def forward(self, im: torch.Tensor, slot: torch.Tensor, smeta: torch.Tensor, sidx: torch.Tensor, B: int, vm: Optional[torch.Tensor] = None) -> torch.Tensor:
+        f = self.enc.forward_features(im, slot) if self.cond == "token" else self.enc.forward_features(im)
+        if self.tokens:
+            inner = getattr(self.enc, "vit", self.enc)
+            orig = getattr(self.enc, "_orig_prefix", getattr(inner, "num_prefix_tokens", 1))
+            f = torch.cat([f[:, :1], f[:, orig:]], 1)
+        return self.readout(f, slot, sidx, B)
+
+
+def _dino_series_side(path: str) -> float:
+    try:
+        ds = pydicom.dcmread(path, stop_before_pixels=True)
+        return float(ds.ImagePositionPatient[0])
+    except Exception:
+        return 0.0
+
+
+def _dino_ordered_files(sdir: str, cap: int = 64) -> List[str]:
+    keyed = []
+    files = glob.glob(os.path.join(sdir, "*.dcm"))
     for f in files:
         try:
-            h = pydicom.dcmread(f, stop_before_pixels=True)
-            iop = getattr(h, "ImageOrientationPatient", None)
-            ipp = getattr(h, "ImagePositionPatient", None)
-            if iop is not None and ipp is not None and len(iop) == 6:
-                r_ = np.array(iop[:3], float)
-                c_ = np.array(iop[3:], float)
-                nn_ = np.cross(r_, c_)
-                pos = float(np.dot(np.array(ipp, float), nn_))
-            else:
-                pos = float(getattr(h, "InstanceNumber", 0) or 0)
-            ps_v = getattr(h, "PixelSpacing", None)
-            ps = float(ps_v[0]) if ps_v is not None else 0.5
-            ps_list.append(ps)
-            slices_with_pos.append((pos, f, ps))
+            ds = pydicom.dcmread(f, stop_before_pixels=True)
+            keyed.append((int(getattr(ds, "InstanceNumber", 0) or 0), f))
         except Exception:
-            slices_with_pos.append((0.0, f, 0.5))
-    slices_with_pos.sort(key=lambda x: (x[0], x[1]))
-    med_ps = float(np.median(ps_list)) if ps_list else 0.5
+            continue
+        if len(keyed) >= cap * 4:
+            break
+    keyed.sort(key=lambda x: x[0])
+    return [f for _, f in keyed]
 
-    total = len(slices_with_pos)
-    lo_i, hi_i = int(total * 0.04), max(int(total * 0.96) - 1, 0)
-    hi_i = max(hi_i, lo_i)
-    picks = np.linspace(lo_i, hi_i, n_slices).round().astype(int) if total > 1 else [0] * n_slices
 
-    frames = []
-    for pi in picks:
-        _, fpath, ps = slices_with_pos[min(pi, total - 1)]
-        try:
-            d = pydicom.dcmread(fpath)
-            a = apply_modality_lut(d.pixel_array, d).astype(np.float32)
-            if str(getattr(d, "PhotometricInterpretation", "")).strip() == "MONOCHROME1":
-                a = a.max() - a
-            ps = ps if ps > 0 else med_ps
-        except Exception:
-            a = np.zeros((256, 256), np.float32)
-            ps = med_ps
-        # Physical crop to 130mm FOV, resize to 224
-        h_, w_ = a.shape
-        cpx = int(round(crop_mm / max(ps, 1e-3)))
-        cpx = min(cpx, min(h_, w_))
-        y0 = (h_ - cpx) // 2
-        x0 = (w_ - cpx) // 2
-        a = a[y0: y0 + cpx, x0: x0 + cpx]
-        a = cv2.resize(a, (img_size, img_size), interpolation=cv2.INTER_AREA)
-        frames.append(a)
+def _dino_read_crop(path: str) -> Optional[np.ndarray]:
+    try:
+        ds = pydicom.dcmread(path)
+        arr = ds.pixel_array.astype(np.float32)
+    except Exception:
+        return None
+    try:
+        ps = float(ds.PixelSpacing[0])
+    except Exception:
+        ps = DINO_CROP_MM / max(arr.shape)
+    half = int(round(DINO_CROP_MM / max(ps, 1e-4) / 2))
+    cy, cx = arr.shape[0] // 2, arr.shape[1] // 2
+    y0, y1 = max(0, cy - half), min(arr.shape[0], cy + half)
+    x0, x1 = max(0, cx - half), min(arr.shape[1], cx + half)
+    crop = arr[y0:y1, x0:x1]
+    return None if crop.size == 0 else crop
 
-    stacked = np.stack(frames, axis=0)  # (n_slices, H, W)
-    lo_, hi_ = np.percentile(stacked, [2.0, 98.0])
-    stacked = np.clip((stacked - lo_) / (hi_ - lo_ + 1e-6), 0.0, 1.0)
-    # Convert to 3-channel normalized float32
-    # Stack as (n_slices, 3, H, W)
-    mean_v = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1)
-    std_v  = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
-    out = np.stack([np.stack([stacked[i]] * 3, axis=0) for i in range(n_slices)])  # (K, 3, H, W)
-    out = (out - mean_v[None]) / std_v[None]
-    return out.astype(np.float32)
+
+def _dino_window(crop: np.ndarray, lo: float, hi: float, flip: bool) -> np.ndarray:
+    c = np.clip((crop - lo) / max(hi - lo, 1e-6), 0.0, 1.0)
+    img = cv2.resize(c, (DINO_SIZE, DINO_SIZE), interpolation=cv2.INTER_AREA)
+    return img[:, ::-1].copy() if flip else img
+
+
+def _dino_render(path: str, flip: bool) -> Optional[np.ndarray]:
+    crop = _dino_read_crop(path)
+    if crop is None:
+        return None
+    lo, hi = np.percentile(crop[::4, ::4], [1.0, 99.0])
+    return _dino_window(crop, lo, hi, flip)
+
+
+def build_dino_study(study_id: str, recs: List[dict], series_dir: str) -> Tuple[np.ndarray, np.ndarray]:
+    """Constructs 6-slot 16-slice 336x336 inputs for Meta DINOv3 ViT model."""
+    out = np.zeros((DINO_N_SLOTS, DINO_N_SLICE, DINO_SIZE, DINO_SIZE), dtype=np.float32)
+    mask = np.zeros(DINO_N_SLOTS, dtype=np.uint8)
+    if not recs:
+        return out, mask
+
+    rows = pd.DataFrame(recs)
+    for s_i, (plane, fs) in enumerate(DINO_SLOTS):
+        sub = rows[(rows["Anatomical_Plane"] == plane) & (rows["Fat_Suppression"].astype(int) == fs)]
+        if sub.empty:
+            continue
+        ser_uid = sub.iloc[0]["SeriesInstanceUID"]
+        s_path = os.path.join(series_dir, study_id, ser_uid)
+        if not os.path.isdir(s_path):
+            s_path = os.path.join(series_dir, ser_uid)
+        files = _dino_ordered_files(s_path)
+        if not files:
+            continue
+        flip = (plane != "Sagittal") and (_dino_series_side(files[0]) < 0)
+        lo_f, hi_f = DINO_SLICE_BAND
+        i0 = int(round(lo_f * (len(files) - 1)))
+        i1 = int(round(hi_f * (len(files) - 1)))
+        avail = list(range(i0, i1 + 1))
+        if len(avail) >= DINO_N_SLICE:
+            picks = [avail[int(round(t))] for t in np.linspace(0, len(avail) - 1, DINO_N_SLICE)]
+        else:
+            picks = [int(round(t)) for t in np.linspace(0, len(files) - 1, DINO_N_SLICE)]
+
+        slot_frames = []
+        for p_idx in picks:
+            fr = _dino_render(files[min(p_idx, len(files) - 1)], flip)
+            if fr is None:
+                fr = np.zeros((DINO_SIZE, DINO_SIZE), dtype=np.float32)
+            slot_frames.append(fr)
+        out[s_i] = np.stack(slot_frames, axis=0)
+        mask[s_i] = 1
+    return out, mask
 
 
 # ============================================================================
@@ -787,17 +847,20 @@ def _radnet_load_slot(sdir: str, n_slices: int, crop_mm: float, img_size: int) -
 def fuse_predictions(
     df_raptor: pd.DataFrame,
     df_reader: Optional[pd.DataFrame],
-    df_radnet: Optional[pd.DataFrame],
+    df_dino: Optional[pd.DataFrame],
     study_ids: List[str],
+    df_radnet: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
-    """Fuses CoAtNet SWA, ConvNeXt MIL Reader, and RadImageNet ResNet-50 using
-    pathology-calibrated Tri-Arm Probit Quantile Geometric Fusion with per-class
+    """Fuses CoAtNet SWA, ConvNeXt MIL Reader, and Meta DINOv3 ViT using
+    pathology-calibrated Tri-Family Probit Quantile Geometric Fusion with per-class
     temperatures and clinical co-occurrence conditional boosts.
     """
     has_reader = df_reader is not None and not df_reader.empty
-    has_radnet = df_radnet is not None and not df_radnet.empty
+    # Support df_dino (primary Arm 3) or fallback df_radnet
+    active_arm3 = df_dino if (df_dino is not None and not df_dino.empty) else df_radnet
+    has_arm3 = active_arm3 is not None and not active_arm3.empty
 
-    if not has_reader and not has_radnet:
+    if not has_reader and not has_arm3:
         print("[FUSION] Auxiliary arms absent; deploying pure 0.949 CoAtNet SWA anchor.")
         df_sub = df_raptor.copy()
         df_sub[LABELS] = df_sub[LABELS].rank(pct=True)
@@ -813,33 +876,33 @@ def fuse_predictions(
     else:
         c_rank = r_rank.copy()
 
-    if has_radnet:
-        df_radnet = df_radnet.set_index("StudyInstanceUID").reindex(study_ids)
-        rad_rank = df_radnet[LABELS].rank(pct=True).to_numpy(dtype=np.float64)
+    if has_arm3:
+        active_arm3 = active_arm3.set_index("StudyInstanceUID").reindex(study_ids)
+        d_rank = active_arm3[LABELS].rank(pct=True).to_numpy(dtype=np.float64)
     else:
-        rad_rank = r_rank.copy()
+        d_rank = r_rank.copy()
 
     fused = np.zeros_like(r_rank)
     for j, col in enumerate(LABELS):
-        w_coat, w_cnxt, w_rad = TRI_ARM_WEIGHTS.get(col, (0.50, 0.25, 0.25))
+        w_coat, w_cnxt, w_arm3 = TRI_ARM_WEIGHTS.get(col, (0.50, 0.25, 0.25))
         # Renormalize weights if an auxiliary arm is missing
         if not has_reader:
             w_cnxt = 0.0
-        if not has_radnet:
-            w_rad = 0.0
-        w_sum = w_coat + w_cnxt + w_rad
-        w1, w2, w3 = w_coat / w_sum, w_cnxt / w_sum, w_rad / w_sum
+        if not has_arm3:
+            w_arm3 = 0.0
+        w_sum = w_coat + w_cnxt + w_arm3
+        w1, w2, w3 = w_coat / w_sum, w_cnxt / w_sum, w_arm3 / w_sum
 
         # 1. Multi-arm linear percentile blend
-        lin = w1 * r_rank[:, j] + w2 * c_rank[:, j] + w3 * rad_rank[:, j]
+        lin = w1 * r_rank[:, j] + w2 * c_rank[:, j] + w3 * d_rank[:, j]
 
         # 2. Per-class temperature-calibrated Latent Probit Quantile Geometric blend
         T = PROBIT_TEMPERATURES.get(col, 0.90)
         qa = ndtri(np.clip(r_rank[:, j], 1e-5, 1.0 - 1e-5))
         qc = ndtri(np.clip(c_rank[:, j], 1e-5, 1.0 - 1e-5))
-        qr = ndtri(np.clip(rad_rank[:, j], 1e-5, 1.0 - 1e-5))
+        qd = ndtri(np.clip(d_rank[:, j], 1e-5, 1.0 - 1e-5))
 
-        z_combined = (w1 * qa + w2 * qc + w3 * qr) / T
+        z_combined = (w1 * qa + w2 * qc + w3 * qd) / T
         probit = expit(z_combined)
 
         # 3. Probit-dominant blend (40% linear + 60% probit) with anti-tie jitter
@@ -1125,19 +1188,78 @@ def run_inference():
         print("[LEG 2 NOTE] No ConvNeXt reader checkpoints found; proceeding with pure SOTA CoAtNet.")
 
     # ------------------------------------------------------------------------
-    # LEG 3: RadNet Bypassed to Guarantee 0.943+ Calibration & Prevent Variance Noise
+    # LEG 3: Meta DINOv3 ViT-Small Multi-Plane Arm (Kaggle: knee-mri-fold-weights)
     # ------------------------------------------------------------------------
-    df_radnet = None
-    print("\n[LEG 3 NOTE] RadNet arm intentionally bypassed to preserve SOTA CoAtNet + ConvNeXt calibration.")
+    df_dino = None
+    dino_ckpts = sorted(glob.glob("/kaggle/input/knee-mri-fold-weights/*_f*.pt"))
+    if not dino_ckpts:
+        dino_ckpts = sorted(glob.glob("checkpoints/m_f*.pt"))
+    if not dino_ckpts:
+        dino_ckpts = sorted(glob.glob(str(Path.home() / "projects/RSNA/checkpoints/m_f*.pt")))
+
+    if dino_ckpts:
+        print(f"\n[LEG 3] Found {len(dino_ckpts)} Meta DINOv3 ViT checkpoint(s): {[os.path.basename(c) for c in dino_ckpts]}")
+        try:
+            dino_models = []
+            for cp in dino_ckpts:
+                z = torch.load(cp, map_location="cpu", weights_only=False)
+                cfg = z.get("cfg", {})
+                bb = cfg.get("backbone", "vit_small_patch16_dinov3.lvd1689m")
+                enc = timm.create_model(bb, pretrained=False, num_classes=0, in_chans=cfg.get("n_slice", 16), img_size=cfg.get("img", 336))
+                enc = ViTSlotToken(enc, N_SLOT_TYPES)
+                m = DINOKneeNet(enc, cfg.get("cond", "token"), cfg.get("n_meta", 0), cfg.get("pool", "xcodex"), stem=cfg.get("stem", "native"), n_slice=cfg.get("n_slice", 16))
+                m.load_state_dict(z["state_dict"], strict=False)
+                m = m.to(device).eval()
+                dino_models.append(m)
+            print(f"[LEG 3] Successfully loaded {len(dino_models)} DINOv3 fold model(s) to {device}!")
+
+            dino_preds = np.full((N, len(LABELS)), 0.5, dtype=np.float32)
+            with torch.no_grad():
+                for i, sid in enumerate(study_ids):
+                    study_imgs, study_mask = build_dino_study(sid, ser_records.get(sid, []), str(tsdir))
+                    active = np.nonzero(study_mask > 0)[0]
+                    if len(active) == 0:
+                        continue
+                    blk = torch.from_numpy(study_imgs[active]).float().to(device)
+                    slots = torch.from_numpy(active + 1).long().to(device)
+                    sidx = torch.zeros(len(active), dtype=torch.long, device=device)
+                    smeta = torch.zeros(len(active), 0, device=device)
+
+                    fold_preds = []
+                    for dm in dino_models:
+                        if device.type == "cuda":
+                            with torch.autocast("cuda", dtype=torch.float16):
+                                logit = dm(blk, slots, smeta, sidx, 1)
+                        else:
+                            logit = dm(blk, slots, smeta, sidx, 1)
+                        fold_preds.append(torch.sigmoid(logit)[0].cpu().numpy())
+                    del blk, slots, sidx, smeta
+                    dino_preds[i] = np.mean(fold_preds, axis=0)
+
+                    if (i + 1) % 50 == 0 or (i + 1) == N:
+                        print(f"  [LEG 3] DINOv3 processed {i+1}/{N} studies ({time.time()-t0:.1f}s)")
+
+            df_dino = pd.DataFrame(dino_preds, columns=LABELS)
+            df_dino.insert(0, "StudyInstanceUID", study_ids)
+            del dino_models
+            gc.collect()
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
+            print(f"[LEG 3 SUCCESS] Meta DINOv3 ViT inference completed successfully!")
+        except Exception as e:
+            print(f"[LEG 3 ERROR] DINOv3 inference error ({e}). Gracefully falling back to CoAtNet + ConvNeXt.")
+            df_dino = None
+    else:
+        print("\n[LEG 3 NOTE] No DINOv3 checkpoints found; proceeding with CoAtNet + ConvNeXt baseline.")
 
     # ------------------------------------------------------------------------
-    # LEG 4: Pathology-Calibrated Tri-Arm Latent Probit Quantile Fusion & Export
+    # LEG 4: Pathology-Calibrated Tri-Family Latent Probit Quantile Fusion & Export
     # ------------------------------------------------------------------------
-    print("\n[LEG 4] Performing Pathology-Calibrated Tri-Arm Probit Quantile Geometric Fusion...")
+    print("\n[LEG 4] Performing Pathology-Calibrated Tri-Family Probit Quantile Geometric Fusion...")
     final_df = fuse_predictions(
         df_raptor=df_sota,
         df_reader=df_reader,
-        df_radnet=df_radnet,
+        df_dino=df_dino,
         study_ids=study_ids,
     )
 
