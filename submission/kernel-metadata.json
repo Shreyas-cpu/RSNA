@@ -9,10 +9,9 @@
   "enable_internet": "false",
   "dataset_sources": [
     "nartaa/rsna-knee-publication-swa-weights-20261007",
-    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
-    "mattiaangeli/knee-mri-fold-weights",
-    "shigechan/radimagenet-resnet50-official",
-    "antoinegg1/rsna-knee-e11-diverse-heads-v20"
+    "rostigor/rsna-knee-r6-fe055406",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader"
   ],
   "competition_sources": [
     "rsna-knee-abnormality-detection"
