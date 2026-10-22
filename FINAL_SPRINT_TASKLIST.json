@@ -1,0 +1,46 @@
+{
+  "title": "RSNA Knee Abnormality Detection Final Sprint to 0.966+",
+  "deadline_utc": "2026-10-22T23:59:00Z",
+  "tasks": [
+    {
+      "id": 1,
+      "task": "Monitor V21 submission score on Kaggle",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 2,
+      "task": "Spawn agy2 subagent to construct V22 Multi-Plane Cross-Attention Ensemble",
+      "status": "COMPLETED"
+    },
+    {
+      "id": 3,
+      "task": "Verify V22 locally on sample studies (ensure <25 min run, no NaN)",
+      "status": "COMPLETED"
+    },
+    {
+      "id": 4,
+      "task": "Push V22 to GitHub and Kaggle, trigger submission",
+      "status": "PENDING"
+    },
+    {
+      "id": 5,
+      "task": "Construct V23 Final SOTA Hybrid (Multi-Plane + Calibration + Safety Anchor)",
+      "status": "PENDING"
+    },
+    {
+      "id": 6,
+      "task": "Push V23 to Kaggle, trigger submission",
+      "status": "PENDING"
+    },
+    {
+      "id": 7,
+      "task": "Select the final two best submissions for private scoring",
+      "status": "PENDING"
+    },
+    {
+      "id": 8,
+      "task": "Execute system shutdown / poweroff",
+      "status": "PENDING"
+    }
+  ]
+}
